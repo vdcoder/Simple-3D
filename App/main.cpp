@@ -1,8 +1,10 @@
+#include <stdio.h>
+
 int main()
 {
     printf("Hello World\n");
     
-    getchar();
+    int c = getchar();
     
     return 0;
 }
