@@ -1,1 +1,223 @@
+<html>
+<head>
+    <script>
+        var map = [
+            'blue', 'blue', 'yellow', 'blue', '', '', 'blue',
+            'green', '', '', 'blue', '', '', 'blue',
+            'white', '', '', 'red', '', '', 'blue',
+            '', '', '', '', '', '', 'blue',
+            'yellow', '', '', '', '', '', 'blue',
+            'blue', '', '', 'blue', '', '', 'blue',
+            'blue', 'blue', 'yellow', 'blue', '', '', 'blue'];
 
+        // Vars
+        var x = null, y, a;
+        var boxes = [];
+        var heights = [], heightsc = [];
+        var keys = [false, false, false, false];
+
+        var HORIZON = 200;
+
+        function Initialize()
+        {
+            var n = Math.floor(Math.sqrt(map.length));
+            for (var i = 0; i < n; i++)
+                for (var j = 0; j < n; j++)
+                {
+                    if (map[i * n + j] != '')
+                    {
+                        boxes.push(
+                            {
+                                x1: j,
+                                y1: i,
+                                color: map[i * n + j]
+                            }
+                        );
+                    }
+                    else if (x == null)
+                    {
+                        x = i + 0.5;
+                        y = j + 0.5;
+                        a = -3.1415 / 2 - 0.2;
+                    }
+                }
+        }
+
+        function ProjectPoint(x, y, cx, cy, angle)
+        {
+            var s = Math.sin(angle);
+            var c = Math.cos(angle);
+
+            // translate point back to origin:
+            var px = x - cx;
+            var py = y - cy;
+
+            // rotate point
+            var xnew = px * c - py * s;
+            var ynew = px * s + py * c;
+
+            return [xnew, ynew];
+        }
+
+        function ComputeLine(rotx, roty)
+        {
+            var SCALE = 200;
+            var BOX_HEIGHT = 200;
+            var OFFSET = document.body.clientWidth / 2;
+
+            var width =     SCALE * rotx / roty;
+            var height = BOX_HEIGHT / roty;
+
+            return [OFFSET + width, height];
+        }
+
+        function DrawCeling(hor, color)
+        {
+            var c = document.getElementById("cv");
+            var ctx = c.getContext("2d");
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, document.body.clientWidth, hor);
+        }
+
+        function DrawFloor(hor, color)
+        {
+            var c = document.getElementById("cv");
+            var ctx = c.getContext("2d");
+            ctx.fillStyle = color;
+            ctx.fillRect(0, hor, document.body.clientWidth, document.body.clientHeight);
+        }
+
+        function DrawLine(x)
+        {
+            var c = document.getElementById("cv");
+            var ctx = c.getContext("2d");
+            ctx.beginPath();
+            ctx.moveTo(x, HORIZON - heights[x] / 2);
+            ctx.lineTo(x, HORIZON + heights[x] / 2);
+            ctx.strokeStyle = heightsc[x];
+            ctx.stroke();
+        }
+
+        function SetLine(x, h, color)
+        {
+            if (x >= 0 && x < heights.length && heights[x] < h)
+            {
+                heights[x] = h;
+                heightsc[x] = color;
+            }
+        }
+
+        function DrawFace(x1, h1, x2, h2, color)
+        {
+            var ix1 = Math.floor(x1);
+            var ix2 = Math.floor(x2);
+
+            var deltax = ix2 - ix1;
+            var step = ix1 < ix2 ? 1 : -1; 
+            var steph = step * (h2 - h1) / deltax;
+
+            var h = h1;
+            for (var x = ix1; x != ix2; x += step)
+            {
+                SetLine(x, h, color);
+                h += steph;
+            }
+            SetLine(ix2, h2, color);
+        }
+
+        function Render()
+        {
+            DrawCeling(HORIZON, 'lightblue');
+            DrawFloor(HORIZON, 'gray');
+
+            for (var i = 0; i < heights.length; i++)
+                heights[i] = 0;
+
+            // rotate and set
+            for (var i = 0; i < boxes.length; i++)
+            {
+                var rp1 = ProjectPoint(boxes[i].x1,      boxes[i].y1,        x, y, a);
+                var rp2 = ProjectPoint(boxes[i].x1 + 1,  boxes[i].y1,        x, y, a);
+                var rp3 = ProjectPoint(boxes[i].x1 + 1,  boxes[i].y1 + 1,    x, y, a);
+                var rp4 = ProjectPoint(boxes[i].x1,      boxes[i].y1 + 1,    x, y, a);
+
+                var l1 = null; if (rp1[1] > 0.1) l1 = ComputeLine(rp1[0], rp1[1]);
+                var l2 = null; if (rp2[1] > 0.1) l2 = ComputeLine(rp2[0], rp2[1]);
+                var l3 = null; if (rp3[1] > 0.1) l3 = ComputeLine(rp3[0], rp3[1]);
+                var l4 = null; if (rp4[1] > 0.1) l4 = ComputeLine(rp4[0], rp4[1]);
+
+                if (l1 != null && l2 != null) DrawFace(l1[0], l1[1], l2[0], l2[1], boxes[i].color);
+                if (l2 != null && l3 != null) DrawFace(l2[0], l2[1], l3[0], l3[1], boxes[i].color);
+                if (l3 != null && l4 != null) DrawFace(l3[0], l3[1], l4[0], l4[1], boxes[i].color);
+                if (l4 != null && l1 != null) DrawFace(l4[0], l4[1], l1[0], l1[1], boxes[i].color);   
+            }
+
+            for (var i = 0; i < heights.length; i++)
+                DrawLine(i);
+        }
+
+        function UpdatePlayer()
+        {
+            if (keys[0]) // up
+            {
+                x += Math.sin(a) / 4;
+                y += Math.cos(a) / 4;
+            }
+            if (keys[1]) // down
+            {
+                x -= Math.sin(a) / 4;
+                y -= Math.cos(a) / 4;
+            }
+            if (keys[2]) // left
+            {
+                a -= 0.1;
+            }
+            if (keys[3]) // right
+            {
+                a += 0.1;
+            }
+        }
+
+        function OnKeyDown(e)
+        {
+            keys[0] = keys[0] || (e.keyCode == 38);
+            keys[1] = keys[1] || (e.keyCode == 40);
+            keys[2] = keys[2] || (e.keyCode == 37);
+            keys[3] = keys[3] || (e.keyCode == 39);
+        }
+
+        function OnKeyUp(e)
+        {
+            keys[0] = keys[0] && (e.keyCode != 38);
+            keys[1] = keys[1] && (e.keyCode != 40);
+            keys[2] = keys[2] && (e.keyCode != 37);
+            keys[3] = keys[3] && (e.keyCode != 39);
+        }
+
+        function OnResize(e)
+        {
+            HORIZON = document.body.clientHeight / 2;
+
+            document.getElementById("cv").setAttribute('width', document.body.clientWidth);
+            document.getElementById("cv").setAttribute('height', document.body.clientHeight);
+
+            heights = []; heightsc = [];
+            for (var i = 0; i < document.body.clientWidth; i++) {
+                heights.push(0);
+                heightsc.push('blue');
+            }
+        }
+
+        function OnLoad()
+        {
+            Initialize();
+            setTimeout(OnResize, 40);
+            setInterval(Render, 50);
+            setInterval(UpdatePlayer, 50);
+        }
+    </script>
+</head>
+<body onkeydown="OnKeyDown(event)" onkeyup="OnKeyUp(event)" onresize="OnResize()" onload="OnLoad()" style="margin:0;padding:0">
+    <canvas id="cv" style="margin:0;padding:0"></canvas>
+</body>
+</html>
