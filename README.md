@@ -1,6 +1,7 @@
 
 Coding Invitation
 -----------------
+<br />
 
 Write a 3D navigator resembling the original Wolfenstein 3D classic, as follows:
 - Web app written in JavaScript
